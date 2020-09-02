@@ -94,8 +94,12 @@ impl<M: Metadata> ServerBuilder<M> {
             request: T::raw_schema(),
             response: S::raw_schema(),
         });
-        self.middlewares.iter().for_each(|el| middlewares.push(el.clone()));
-        let route = Route { handler: Handler::new(handler).into(), middlewares };
+        let mut new_middlewares = vec![];
+
+        self.middlewares.iter().for_each(|el| new_middlewares.push(el.clone()));
+        middlewares.iter().for_each(|el| new_middlewares.push(el.clone()));
+
+        let route = Route { handler: Handler::new(handler).into(), middlewares: new_middlewares };
         self.router.insert(name.into(), route);
         self
     }
