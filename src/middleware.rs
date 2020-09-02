@@ -3,6 +3,7 @@ use crate::handler::BoxedHandler;
 use crate::request::RequestObject;
 use crate::server::Metadata;
 use crate::BoxedSerialize;
+use futures::Future;
 use std::sync::Arc;
 
 pub struct Next<'a, 'b, M: Metadata> {
@@ -32,5 +33,23 @@ impl<M: Metadata> Next<'_, '_, M> {
         } else {
             (&self.endpoint.0)(req, metadata).await
         }
+    }
+}
+
+#[async_trait::async_trait]
+impl<M, FN, I> Middleware<M> for FN
+where
+    M: Metadata,
+    I: Future<Output = Result<(RequestObject, M), Error>> + Send + 'static,
+    FN: Fn(RequestObject, M) -> I + Send + Sync + 'static,
+{
+    async fn handle(
+        &self,
+        req: RequestObject,
+        metadata: M,
+        next: Next<'_, '_, M>,
+    ) -> Result<BoxedSerialize, Error> {
+        let (req, metadata) = (self)(req, metadata).await?;
+        next.run(req, metadata).await
     }
 }
