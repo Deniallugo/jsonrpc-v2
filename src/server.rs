@@ -45,16 +45,14 @@ where
 }
 
 impl<M: Metadata> Server<M> {
-    pub fn new() -> ServerBuilder<M> {
-        Self::with_router(MapRouter::default())
+    pub fn new(middlewares: Vec<Arc<dyn Middleware<M>>>) -> ServerBuilder<M> {
+        Self::with_router(MapRouter::default(), middlewares)
     }
-    pub fn with_router(router: MapRouter<M>) -> ServerBuilder<M> {
-        ServerBuilder {
-            router,
-            routes: Vec::default(),
-            notifications: Vec::default(),
-            middlewares: Vec::default(),
-        }
+    pub fn with_router(
+        router: MapRouter<M>,
+        middlewares: Vec<Arc<dyn Middleware<M>>>,
+    ) -> ServerBuilder<M> {
+        ServerBuilder { router, routes: Vec::default(), notifications: Vec::default(), middlewares }
     }
 }
 
@@ -81,7 +79,7 @@ impl<M: Metadata> ServerBuilder<M> {
         mut self,
         name: N,
         handler: F,
-        middlewares: Vec<Arc<dyn Middleware<M>>>,
+        mut middlewares: Vec<Arc<dyn Middleware<M>>>,
     ) -> Self
     where
         N: Into<String> + Clone,
@@ -96,6 +94,7 @@ impl<M: Metadata> ServerBuilder<M> {
             request: T::raw_schema(),
             response: S::raw_schema(),
         });
+        self.middlewares.iter().for_each(|el| middlewares.push(el.clone()));
         let route = Route { handler: Handler::new(handler).into(), middlewares };
         self.router.insert(name.into(), route);
         self
@@ -172,7 +171,6 @@ where
         };
 
         if let Some(route) = self.router.get(req.method.as_ref()) {
-            // let middlewares = [&self.middlewares[..], &route.middlewares[..]].concat();
             let next = Next { endpoint: &route.handler, next_middleware: &route.middlewares };
 
             let out = next.run(req, metadata).then(|res| match res {

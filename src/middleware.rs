@@ -3,7 +3,9 @@ use crate::handler::BoxedHandler;
 use crate::request::RequestObject;
 use crate::server::Metadata;
 use crate::BoxedSerialize;
+use erased_serde::Serialize;
 use futures::Future;
+use std::io;
 use std::sync::Arc;
 
 pub struct Next<'a, 'b, M: Metadata> {
@@ -51,5 +53,29 @@ where
     ) -> Result<BoxedSerialize, Error> {
         let (req, metadata) = (self)(req, metadata).await?;
         next.run(req, metadata).await
+    }
+}
+
+pub struct LoggerMiddleware;
+
+#[async_trait::async_trait]
+impl<M> Middleware<M> for LoggerMiddleware
+where
+    M: Metadata,
+{
+    async fn handle(
+        &self,
+        req: RequestObject,
+        metadata: M,
+        next: Next<'_, '_, M>,
+    ) -> Result<BoxedSerialize, Error> {
+        // TODO move it to another thread
+        let method_name = req.method.clone();
+        log::info!("request {} \n {:?}", &method_name, &req);
+        let res = next.run(req, metadata).await;
+        let resp =
+            serde_json::to_string_pretty(&res).expect("Response should be json serializable");
+        log::info!("response {} \n {}", &method_name, &resp);
+        res
     }
 }
