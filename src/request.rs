@@ -12,6 +12,7 @@ use bytes::Bytes;
 
 #[cfg(feature = "bytes-v04")]
 use bytes_v04::Bytes;
+use serde::export::Formatter;
 
 /// Builder struct for a request object
 #[derive(Default)]
@@ -47,7 +48,7 @@ impl RequestBuilder<String> {
             jsonrpc: V2,
             method: method.into_boxed_str(),
             params: params.map(InnerParams::Value),
-            id: Some(Some(id)),
+            id,
         }
     }
 }
@@ -104,6 +105,15 @@ pub enum InnerParams {
     Raw(Box<RawValue>),
 }
 
+impl std::fmt::Display for InnerParams {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InnerParams::Value(val) => write!(f, "{}", val),
+            InnerParams::Raw(val) => write!(f, "{}", val),
+        }
+    }
+}
+
 /// Request/Notification object
 #[derive(Debug, Deserialize, Serialize, Default)]
 #[serde(default)]
@@ -112,8 +122,22 @@ pub struct RequestObject {
     pub method: Box<str>,
     pub params: Option<InnerParams>,
     #[serde(deserialize_with = "RequestObject::deserialize_id")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<Option<Id>>,
+    #[serde(skip_serializing_if = "Id::is_null")]
+    pub id: Id,
+}
+
+impl std::fmt::Display for RequestObject {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let params = match &self.params {
+            Some(val) => format!("{}", val),
+            None => "null".to_string(),
+        };
+        write!(
+            f,
+            "version: {:?} \n method: {} \n params: {} \n id: {}",
+            self.jsonrpc, self.method, params, self.id
+        )
+    }
 }
 
 /// Request/Notification object
@@ -124,8 +148,8 @@ pub(crate) struct BytesRequestObject {
     pub(crate) method: Box<str>,
     pub(crate) params: Option<Box<RawValue>>,
     #[serde(deserialize_with = "RequestObject::deserialize_id")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) id: Option<Option<Id>>,
+    #[serde(skip_serializing_if = "Id::is_null")]
+    pub(crate) id: Id,
 }
 
 impl From<BytesRequestObject> for RequestObject {
@@ -146,11 +170,12 @@ impl RequestObject {
         NotificationBuilder::default()
     }
 
-    fn deserialize_id<'de, D>(deserializer: D) -> Result<Option<Option<Id>>, D::Error>
+    fn deserialize_id<'de, D>(deserializer: D) -> Result<Id, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Ok(Some(Option::deserialize(deserializer)?))
+        let id: Option<Id> = Option::deserialize(deserializer)?;
+        Ok(id.unwrap_or(Id::Null))
     }
 }
 

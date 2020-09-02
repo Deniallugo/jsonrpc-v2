@@ -35,9 +35,11 @@ pub mod server;
 pub use error::{Error, ErrorLike};
 pub use notification::NotificationBuilder;
 pub use request::{DummyReq, Params};
+use serde::export::Formatter;
 pub use server::{Metadata, Server};
 
-type BoxedSerialize = Box<dyn erased_serde::Serialize + Send>;
+
+pub type BoxedSerialize = Box<dyn erased_serde::Serialize + Send>;
 
 #[doc(hidden)]
 #[derive(Default, Debug)]
@@ -74,6 +76,25 @@ pub enum Id {
     Num(i64),
     Str(Box<str>),
     Null,
+}
+
+impl Id {
+    pub fn is_null(&self) -> bool {
+        match self {
+            Id::Null => true,
+            _ => false,
+        }
+    }
+}
+
+impl std::fmt::Display for Id {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Id::Null => write!(f, "null"),
+            Id::Num(res) => write!(f, "{}", res),
+            Id::Str(res) => write!(f, "{}", res),
+        }
+    }
 }
 
 impl From<i64> for Id {

@@ -79,7 +79,7 @@ impl<M: Metadata> ServerBuilder<M> {
         mut self,
         name: N,
         handler: F,
-        mut middlewares: Vec<Arc<dyn Middleware<M>>>,
+        middlewares: Vec<Arc<dyn Middleware<M>>>,
     ) -> Self
     where
         N: Into<String> + Clone,
@@ -168,11 +168,7 @@ where
         req: RequestObject,
         metadata: M,
     ) -> impl Future<Output = SingleResponseObject> + '_ {
-        let opt_id = match req.id {
-            Some(Some(ref id)) => Some(id.clone()),
-            Some(None) => Some(Id::Null),
-            None => None,
-        };
+        let opt_id = req.id.clone();
 
         if let Some(route) = self.router.get(req.method.as_ref()) {
             let next = Next { endpoint: &route.handler, next_middleware: &route.middlewares };

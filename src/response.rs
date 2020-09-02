@@ -62,18 +62,17 @@ impl From<SingleResponseObject> for ResponseObjects {
 }
 
 impl SingleResponseObject {
-    pub(crate) fn result(result: BoxedSerialize, opt_id: Option<Id>) -> Self {
-        if opt_id.is_none() {
-            log::info!("id for request is none");
+    pub(crate) fn result(result: BoxedSerialize, opt_id: Id) -> Self {
+        match &opt_id {
+            Id::Null => SingleResponseObject::Empty,
+            _ => SingleResponseObject::One(ResponseObject::result(result, opt_id)),
         }
-        opt_id
-            .map(|id| SingleResponseObject::One(ResponseObject::result(result, id)))
-            .unwrap_or_else(|| SingleResponseObject::Empty)
     }
 
-    pub(crate) fn error(error: Error, opt_id: Option<Id>) -> Self {
-        opt_id
-            .map(|id| SingleResponseObject::One(ResponseObject::error(error, id)))
-            .unwrap_or_else(|| SingleResponseObject::Empty)
+    pub(crate) fn error(error: Error, opt_id: Id) -> Self {
+        match &opt_id {
+            Id::Null => SingleResponseObject::Empty,
+            _ => SingleResponseObject::One(ResponseObject::error(error, opt_id)),
+        }
     }
 }

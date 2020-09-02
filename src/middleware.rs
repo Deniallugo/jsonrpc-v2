@@ -3,9 +3,9 @@ use crate::handler::BoxedHandler;
 use crate::request::RequestObject;
 use crate::server::Metadata;
 use crate::BoxedSerialize;
-use erased_serde::Serialize;
+
 use futures::Future;
-use std::io;
+
 use std::sync::Arc;
 
 pub struct Next<'a, 'b, M: Metadata> {
@@ -24,11 +24,7 @@ pub trait Middleware<M: Metadata>: Send + Sync + 'static {
 }
 
 impl<M: Metadata> Next<'_, '_, M> {
-    pub(crate) async fn run(
-        mut self,
-        req: RequestObject,
-        metadata: M,
-    ) -> Result<BoxedSerialize, Error> {
+    pub async fn run(mut self, req: RequestObject, metadata: M) -> Result<BoxedSerialize, Error> {
         if let Some((current, next)) = self.next_middleware.split_first() {
             self.next_middleware = next;
             current.handle(req, metadata, self).await
@@ -71,11 +67,12 @@ where
     ) -> Result<BoxedSerialize, Error> {
         // TODO move it to another thread
         let method_name = req.method.clone();
-        log::info!("request {} \n {:?}", &method_name, &req);
+        let req_id = req.id.clone();
+        log::info!("request \n {}", &req);
         let res = next.run(req, metadata).await;
         let resp =
             serde_json::to_string_pretty(&res).expect("Response should be json serializable");
-        log::info!("response {} \n {}", &method_name, &resp);
+        log::info!("response \n method {} \n params {} \n id {}", &method_name, &resp, &req_id,);
         res
     }
 }

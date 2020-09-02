@@ -1,5 +1,5 @@
 use crate::request::{InnerParams, RequestObject};
-use crate::V2;
+use crate::{Id, V2};
 use serde_json::Value;
 
 /// Builder struct for a notification request object
@@ -30,7 +30,7 @@ impl NotificationBuilder<String> {
             jsonrpc: V2,
             method: method.into_boxed_str(),
             params: params.map(InnerParams::Value),
-            id: None,
+            id: Id::Null,
         }
     }
 }
